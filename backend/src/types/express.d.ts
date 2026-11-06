@@ -1,0 +1,17 @@
+import { OrganizationRole } from "@prisma/client";
+
+declare global {
+  namespace Express {
+    interface User {
+      id: string;
+      name: string;
+      email: string;
+    }
+
+    interface Request {
+      user?: User;
+    }
+  }
+}
+
+export {};

@@ -1,15 +1,116 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL_POOLED")
+  directUrl = env("DATABASE_URL")
+}
+
+// User account roles within an organization
+enum OrganizationRole {
+  OWNER
+  ADMIN
+  MEMBER
+  REVIEWER
+}
+
+// Document processing lifecycle
+enum DocumentStatus {
+  UPLOADED
+  PROCESSING
+  READY
+  FAILED
+}
+
+// User accounts
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  isActive     Boolean  @default(true)
+
+  memberships       OrganizationMember[]
+  uploadedDocuments Document[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([email])
+}
+
+// Company workspaces
+model Organization {
+  id          String @id @default(cuid())
+  name        String
+  slug        String @unique
+  description String?
+
+  members   OrganizationMember[]
+  documents Document[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Users belonging to organizations
+model OrganizationMember {
+  id             String           @id @default(cuid())
+  userId         String
+  organizationId String
+  role           OrganizationRole @default(MEMBER)
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, organizationId])
+  @@index([organizationId])
+  @@index([userId])
+}
+
+// Uploaded company documents
+model Document {
+  id             String         @id @default(cuid())
+  organizationId String
+  uploadedById   String?
+
+  originalName String
+  storageKey   String
+  mimeType     String
+  sizeBytes    BigInt
+  status       DocumentStatus @default(UPLOADED)
+  errorMessage String?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  uploadedBy   User?        @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+  chunks       DocumentChunk[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([uploadedById])
+  @@index([status])
+}
+
+// Extracted and divided document text
+model DocumentChunk {
+  id         String @id @default(cuid())
+  documentId String
+  chunkIndex Int
+  content    String @db.Text
+  pageNumber Int?
+  metadata   Json?
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([documentId, chunkIndex])
+  @@index([documentId])
 }

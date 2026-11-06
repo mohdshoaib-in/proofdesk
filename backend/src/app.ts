@@ -4,6 +4,7 @@ import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
 import swaggerUi from "swagger-ui-express";
+import authRoutes from "./routes/auth.routes";
 
 import healthRoutes from "./routes/health.routes";
 import swaggerSpec from "./config/swagger";
@@ -15,6 +16,7 @@ app.use(helmet());
 app.use(cors());
 app.use(express.json());
 app.use(morgan("dev"));
+app.use("/api/auth", authRoutes);
 
 // Swagger documentation
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
